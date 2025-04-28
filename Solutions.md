@@ -130,7 +130,7 @@ SELECT region,
 	 GROUP BY region, month_number, calendar_year
 	 ORDER BY region, calendar_year, month_number;
 ```
-This table is only a sample of teh output;
+This table is only a sample of the output;
 
 | region  | month_number  | calendar_year  |  total_transaction  |
 |---------|---------------|----------------|---------------------|
