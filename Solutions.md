@@ -130,7 +130,7 @@ SELECT region,
 	 GROUP BY region, month_number, calendar_year
 	 ORDER BY region, calendar_year, month_number;
 ```
-This table is only a sample of the output;
+This table is only a sample of the output:
 
 | region  | month_number  | calendar_year  |  total_transaction  |
 |---------|---------------|----------------|---------------------|
@@ -157,4 +157,73 @@ This table is only a sample of the output;
 | ASIA |	3	| 2018	 | 119180883 |
 | ASIA |	4	| 2018	| 603716301 |
 | ASIA |	5	| 2018	| 472634283 |
+
+
+What is the total count of transactions for each platform
+
+```sql
+SELECT platform,
+       SUM(transactions) AS total_transactions
+    FROM clean_weekly_sales
+    GROUP BY platform;
+```
+
+| platform   |   total_transactions  |
+|------------|-----------------------|
+| Shopify   |	   5925169 |
+| Retail  |	      1081934227  |
+
+
+What is the percentage of sales for Retail vs Shopify for each month?
+
+```sql
+WITH total_shopify AS (SELECT platform,
+                              calendar_year,
+                              month_number,
+                              SUM(sales) AS total_shopify
+                       FROM clean_weekly_sales
+                       WHERE platform = 'Shopify'
+                       GROUP BY platform, calendar_year, month_number),
+
+total_retail AS (SELECT platform,
+                        calendar_year,
+                        month_number,
+                        SUM(sales) AS total_retail
+                   FROM clean_weekly_sales
+                   WHERE platform = 'Retail'
+                  GROUP BY platform,calendar_year, month_number)
+						 
+SELECT ts.calendar_year,
+       ts.month_number,
+       ROUND((100.0*total_shopify/(total_shopify+total_retail)),2) AS shopify_pcent,
+       ROUND((100.0*total_retail/(total_shopify+total_retail)),2) AS retail_pcent
+  FROM total_shopify ts
+  JOIN total_retail tr on ts.calendar_year = tr.calendar_year
+  AND ts.month_number = tr.month_number
+  GROUP BY ts.calendar_year, ts.month_number, ts.total_shopify, tr.total_retail
+  ORDER BY ts.calendar_year, ts.month_number;
+```
+
+| calendar_year   |  month_number  |  shopify_pcent  |   retail_pcent |
+|-----------------|----------------|-----------------|----------------|
+| 2018 |	3 |	2.08 |	97.92 |
+| 2018 |	4 |	2.07 |	97.93 |
+| 2018 |	5 |	2.27 |	97.73 |
+| 2018 |	6 |	2.24 |	97.76 |
+| 2018 |	7 |	2.25 |	97.75 |
+| 2018 |	8 |	2.29 |	97.71 |
+| 2018 |	9 |	2.32 |	97.68 |
+| 2019 |	3 |	2.29 |	97.71 |
+| 2019 |	4 |	2.20 |	97.80 |
+| 2019 |	5 |	2.48 |	97.52 |
+| 2019 |	6 |	2.58 |	97.42 |
+| 2019 | 	7 |	2.65 |	97.35 |
+| 2019 |	8 |	2.79 |	97.21 |
+| 2019 |	9 |	2.91 |	97.09 |
+| 2020 |	3 |	2.70 |	97.30 |
+| 2020 |	4 |	3.04 |	96.96 |
+| 2020 |	5 |	3.29 |	96.71 |
+| 2020 |	6 |	3.20 |	96.80 |
+| 2020 |	7 |	3.33 |	96.67 |
+| 2020 |	8 |	3.49 |	96.51 |
 
