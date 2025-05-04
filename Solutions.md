@@ -227,3 +227,112 @@ SELECT ts.calendar_year,
 | 2020 |	7 |	3.33 |	96.67 |
 | 2020 |	8 |	3.49 |	96.51 |
 
+What is the percentage of sales by demographic for each year in the dataset?
+
+
+```sql
+WITH total_couples AS (SELECT demographic,
+                              calendar_year,
+                              SUM(sales) AS total_couples
+                          FROM clean_weekly_sales
+                          WHERE demographic = 'Couples'
+                          GROUP BY demographic, calendar_year),
+
+total_families AS (SELECT demographic,
+                          calendar_year,
+                          SUM(sales) AS total_families
+                      FROM clean_weekly_sales
+                      WHERE demographic = 'Families'
+                      GROUP BY demographic, calendar_year),
+						 
+						 
+total_unknown AS (SELECT demographic,
+                         calendar_year,
+                         SUM(sales) AS total_unknown
+                    FROM clean_weekly_sales
+                    WHERE demographic is null
+                    GROUP BY demographic, calendar_year)
+						 
+
+     SELECT  tc.calendar_year,
+             ROUND((100.0*total_couples/(total_couples+total_families+total_unknown)),2) AS couples_pcent,
+             ROUND((100.0*total_families/(total_couples+total_families+total_unknown)),2) AS families_pcent,
+             ROUND((100.0*total_unknown/(total_couples+total_families+total_unknown)),2) AS unknown_pcent
+         FROM total_couples tc
+         JOIN total_families tf on tc.calendar_year = tf.calendar_year
+         JOIN total_unknown tu on tc.calendar_year = tu.calendar_year 
+         GROUP BY tc.calendar_year, tc.total_couples, tf.total_families, tu.total_unknown
+         ORDER BY calendar_year;
+```
+							
+
+| calendar_year  | couples_pcent  | families_pcent  |   unknown_pcent  |
+|----------------|----------------|-----------------|------------------|
+| 2018 | 26.38 | 31.99 | 41.63 |
+| 2019 | 27.28 | 32.47 | 40.25 |
+| 2020 | 28.72 | 32.73 | 38.55 |
+
+Which age_band and demographic values contribute the most to Retail sales?
+
+```sql
+SELECT COALESCE(demographic, 'unknown') AS demographic,
+       COALESCE(age_band, 'unknown') AS age_band,
+       SUM(sales) AS contribution,
+       ROUND(100.0 * SUM(sales) / SUM(SUM(sales)) OVER (), 2) AS contribution_percent
+    FROM clean_weekly_sales
+    WHERE platform = 'Retail'
+    GROUP BY platform, demographic, age_band
+    ORDER BY contribution_percent DESC;
+```
+
+| demographic  |  age_band  | contribution  | contribution_percent |
+|--------------|------------|---------------|----------------------|
+| unknown |	unknown |	16067285533 |	40.52 |
+| Families |	Retirees |	6634686916 |	16.73 | 
+| Couples |	Retirees |	6370580014 |	16.07 |
+| Families |	Middle Aged |	4354091554 |	10.98 |
+| Couples |	Young Adult |	2602922797 |	6.56 |
+| Couples |	Middle Aged |	1854160330 |	4.68 |
+| Families |	Young Adult |	1770889293 |	4.47 |
+
+
+Can we use the avg_transaction column to find the average transaction size for each year for Retail vs Shopify? If not - how would you calculate it instead?
+
+```sql
+SELECT  calendar_year,
+        platform,
+        ROUND(avg(avg_transaction),2) AS avg_transaction
+    FROM clean_weekly_sales
+    GROUP BY calendar_year, platform 
+    ORDER BY calendar_year, platform;
+``` 
+
+| calendar_year	 | platform | avg_transaction |
+|----------------|----------|-----------------|
+| 2018	| Retail |	42.91 |
+| 2018	| Shopify |	188.28 |
+| 2019	| Retail |	41.97 |
+| 2019	| Shopify |	177.56 |
+| 2020	| Retail |	40.64 |
+| 2020	| Shopify |	174.87 |
+
+Although the avg_transaction column can used to calculate this, it is not entirely accurate as it calculates the average only on a row by row basis. The following calculates the average for the whole year periods;
+
+```sql
+SELECT  calendar_year,
+        platform,
+        (SUM(sales)/sum(transactions)) AS avg_transactions
+    FROM clean_weekly_sales
+    GROUP BY calendar_year, platform 
+    ORDER BY calendar_year, platform;
+```
+
+| calendar_year | platform | avg_transactions |
+|---------------|----------|------------------|
+| 2018 | Retail |	36 |
+| 2018 | Shopify |	192 |
+| 2019 | Retail |	36 |
+| 2019 | Shopify |	183 |
+| 2020 | Retail |	36 |
+| 2020 | Shopify |	179 |
+
