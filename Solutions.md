@@ -336,3 +336,90 @@ SELECT  calendar_year,
 | 2020 | Retail |	36 |
 | 2020 | Shopify |	179 |
 
+3. Before & After Analysis
+
+This technique is usually used when we inspect an important event and want to inspect the impact before and after a certain point in time.
+
+Taking the week_date value of 2020-06-15 as the baseline week where the Data Mart sustainable packaging changes came into effect.
+
+We would include all week_date values for 2020-06-15 as the start of the period after the change and the previous week_date values would be before
+
+Using this analysis approach - answer the following questions:
+
+What is the total sales for the 4 weeks before and after 2020-06-15? What is the growth or reduction rate in actual values and percentage of sales?
+
+```sql
+WITH total_pre_sales AS (SELECT SUM(sales) AS total_pre_sales 
+                         FROM clean_weekly_sales
+                         WHERE week_date BETWEEN DATE '2020-06-15' - INTERVAL '4 weeks' AND '2020-06-14'),
+	total_post_sales AS (SELECT SUM(sales) AS total_post_sales 
+                         FROM clean_weekly_sales
+                         WHERE week_date BETWEEN  '2020-06-15' AND DATE '2020-06-15' + INTERVAL '4 weeks')
+						 
+	SELECT total_pre_sales,
+	       total_post_sales,
+		   total_post_sales-total_pre_sales AS growth,
+		   ROUND(((total_post_sales-total_pre_sales)*100/total_pre_sales),2) AS growth_percent
+		   FROM total_pre_sales, total_post_sales;
+```
+
+| total_pre_sales  |  total_post_sales  |   growth  |  growth_percent  |
+|------------------|--------------------|-----------|------------------|
+| 2345878357 |	2904930571 |	559052214 |	23.00 |
+
+What about the entire 12 weeks before and after?
+
+```sql
+WITH total_pre_sales AS (SELECT SUM(sales) AS total_pre_sales 
+                         FROM clean_weekly_sales
+                         WHERE week_date BETWEEN DATE '2020-06-15' - INTERVAL '12 weeks' AND '2020-06-14'),
+	total_post_sales AS (SELECT SUM(sales) AS total_post_sales 
+                         FROM clean_weekly_sales
+                         WHERE week_date BETWEEN  '2020-06-15' AND DATE '2020-06-15' + INTERVAL '12 weeks')
+						 
+	SELECT total_pre_sales,
+	       total_post_sales,
+		   total_post_sales-total_pre_sales AS growth,
+		   ROUND(((total_post_sales-total_pre_sales)*100.00/total_pre_sales),2) AS growth_percent
+		   FROM total_pre_sales, total_post_sales;
+```
+
+| total_pre_sales  |  total_post_sales  |  growth  |  growth_percent |
+|------------------|--------------------|----------|-----------------|
+| 7126273147 |	6973947753 |	-152325394 |	-2.14 |
+
+How do the sale metrics for these 2 periods before and after compare with the previous years in 2018 and 2019?
+
+```sql
+WITH year_data AS (
+    SELECT 2018 AS year, DATE '2018-06-15' AS mid_date
+    UNION ALL
+    SELECT 2019, DATE '2019-06-15'
+    UNION ALL
+    SELECT 2020, DATE '2020-06-15'),
+
+pre_post_sales AS (SELECT y.year,
+                          SUM(CASE WHEN s.week_date BETWEEN y.mid_date - INTERVAL '12 weeks' AND y.mid_date - INTERVAL '1 day' THEN s.sales 
+                              ELSE 0 END) AS total_pre_sales,
+                         SUM(CASE WHEN s.week_date BETWEEN y.mid_date AND y.mid_date + INTERVAL '12 weeks' THEN s.sales ELSE 0 END) AS 
+                              total_post_sales
+                  FROM year_data y
+                  JOIN clean_weekly_sales s ON s.week_date BETWEEN y.mid_date - INTERVAL '12 weeks' AND y.mid_date + INTERVAL '12 weeks'
+                       GROUP BY y.year)
+
+SELECT year,
+       total_pre_sales,
+       total_post_sales,
+       total_post_sales - total_pre_sales AS growth,
+       ROUND(((total_post_sales - total_pre_sales) * 100.00 / total_pre_sales),2) AS growth_percent
+   FROM pre_post_sales
+   ORDER BY year;
+```
+
+| year  |  total_pre_sales  |  total_post_sales  |  growth  |  growth_percent  |
+|-------|-------------------|--------------------|----------|------------------|
+| 2018 |	6396562317 |	6500818510 |	104256193 |	1.63 |
+| 2019 |	6883386397 |	6862646103 |	-20740294 |	-0.30 |
+| 2020 |	7126273147 |	6973947753 |	-152325394 |	-2.14 |
+
+
